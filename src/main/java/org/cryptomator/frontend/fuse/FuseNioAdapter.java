@@ -1,14 +1,8 @@
 package org.cryptomator.frontend.fuse;
 
-import ru.serce.jnrfuse.FuseFS;
+import org.cryptomator.frontend.fuse.mount.BypassedFuseFS;
 
-public interface FuseNioAdapter extends FuseFS, AutoCloseable {
+public interface FuseNioAdapter extends BypassedFuseFS {
 
 	boolean isMounted();
-
-	/**
-	 * Sets mounted to false. Other than in {@link FuseFS#umount()} this will not actually attempt to unmount the device.
-	 */
-	@Override
-	void umount();
 }

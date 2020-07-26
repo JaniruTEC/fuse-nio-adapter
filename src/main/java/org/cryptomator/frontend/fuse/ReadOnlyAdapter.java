@@ -9,11 +9,11 @@ import jnr.ffi.types.size_t;
 import org.cryptomator.frontend.fuse.locks.DataLock;
 import org.cryptomator.frontend.fuse.locks.LockManager;
 import org.cryptomator.frontend.fuse.locks.PathLock;
+import org.cryptomator.frontend.fuse.mount.BypassedAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.FuseFillDir;
-import ru.serce.jnrfuse.FuseStubFS;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.serce.jnrfuse.struct.Statvfs;
@@ -43,7 +43,7 @@ import java.util.Set;
  * Read-Only FUSE-NIO-Adapter based on Sergey Tselovalnikov's <a href="https://github.com/SerCeMan/jnr-fuse/blob/0.5.1/src/main/java/ru/serce/jnrfuse/examples/HelloFuse.java">HelloFuse</a>
  */
 @PerAdapter
-public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
+public class ReadOnlyAdapter extends BypassedAdapter implements FuseNioAdapter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ReadOnlyAdapter.class);
 	private static final int BLOCKSIZE = 4096;
@@ -256,20 +256,6 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 	@Override
 	public boolean isMounted() {
 		return mounted.get();
-	}
-
-	/*
-	 * We overwrite the default implementation to skip the "internal" unmount command, because we want to use system commands instead.
-	 * See also: https://github.com/cryptomator/fuse-nio-adapter/issues/29
-	 */
-	@Override
-	public void umount() {
-		// this might be called multiple times: explicitly _and_ via a shutdown hook registered during mount() in AbstractFuseFS
-		if (mounted.compareAndSet(true, false)) {
-			LOG.debug("Marked file system adapter as unmounted.");
-		} else {
-			LOG.trace("File system adapter already unmounted.");
-		}
 	}
 
 	@Override

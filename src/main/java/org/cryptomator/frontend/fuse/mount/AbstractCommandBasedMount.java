@@ -32,7 +32,7 @@ abstract class AbstractCommandBasedMount extends AbstractMount {
 		}
 		Process proc = ProcessUtil.startAndWaitFor(getUnmountCommand(), 5, TimeUnit.SECONDS);
 		ProcessUtil.assertExitValue(proc, 0);
-		fuseAdapter.umount();
+		fuseAdapter.umount(true);
 	}
 
 	@Override
@@ -42,6 +42,6 @@ abstract class AbstractCommandBasedMount extends AbstractMount {
 		}
 		Process proc = ProcessUtil.startAndWaitFor(getUnmountForcedCommand(), 5, TimeUnit.SECONDS);
 		ProcessUtil.assertExitValue(proc, 0);
-		fuseAdapter.umount();
+		fuseAdapter.umount(true);
 	}
 }

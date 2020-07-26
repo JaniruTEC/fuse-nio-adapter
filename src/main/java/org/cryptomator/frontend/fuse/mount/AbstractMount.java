@@ -26,7 +26,7 @@ abstract class AbstractMount implements Mount {
 			return;
 		}
 		try {
-			this.fuseAdapter.umount();
+			this.fuseAdapter.umount(false);
 		} catch (Exception e) {
 			throw new CommandFailedException(e);
 		}
