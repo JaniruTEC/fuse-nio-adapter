@@ -9,7 +9,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
-class ProcessUtil {
+public class ProcessUtil {
 
 	/**
 	 * Fails with a CommandFailedException, if the process did not finish with the expected exit code.

@@ -1,6 +1,6 @@
 package org.cryptomator.frontend.fuse.mount;
 
-public class CommandFailedException extends Exception {
+public class CommandFailedException extends RuntimeException {
 
 	public CommandFailedException(String message) {
 		super(message);
