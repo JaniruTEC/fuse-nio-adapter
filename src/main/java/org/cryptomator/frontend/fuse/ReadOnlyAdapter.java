@@ -270,6 +270,8 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 	public void umountForced() {
 		if(this.forcedUnmounter != null) {
 			this.forcedUnmounter.run();
+		} else if(this.unmounter != null) {
+			this.unmounter.run();
 		}
 
 		umountLocal();
