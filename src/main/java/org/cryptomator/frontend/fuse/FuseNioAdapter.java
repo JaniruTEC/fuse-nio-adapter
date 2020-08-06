@@ -11,4 +11,18 @@ public interface FuseNioAdapter extends FuseFS, AutoCloseable {
 	 */
 	@Override
 	void umount();
+
+	Unmounters unmounters();
+
+	interface Unmounters {
+
+		Runnable getChosenUnmounter();
+
+		void setChosenUnmounter(Runnable chosenUnmounter);
+
+		Runnable getSuperUnmounter();
+
+		Runnable getOverriddenUnmounter();
+
+	}
 }

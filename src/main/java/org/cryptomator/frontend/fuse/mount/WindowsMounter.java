@@ -57,6 +57,9 @@ class WindowsMounter implements Mounter {
 			super(fuseAdapter, envVars);
 			//Copy from dokany-nio-adapter
 			this.revealCommand = new ProcessBuilder("explorer", "/root,", envVars.getMountPoint().toString());
+
+			FuseNioAdapter.Unmounters unmounters = this.fuseAdapter.unmounters();
+			unmounters.setChosenUnmounter(unmounters.getSuperUnmounter());
 		}
 	}
 }

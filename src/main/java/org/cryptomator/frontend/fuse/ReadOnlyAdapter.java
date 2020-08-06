@@ -43,7 +43,7 @@ import java.util.Set;
  * Read-Only FUSE-NIO-Adapter based on Sergey Tselovalnikov's <a href="https://github.com/SerCeMan/jnr-fuse/blob/0.5.1/src/main/java/ru/serce/jnrfuse/examples/HelloFuse.java">HelloFuse</a>
  */
 @PerAdapter
-public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
+public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter, FuseNioAdapter.Unmounters {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ReadOnlyAdapter.class);
 	private static final int BLOCKSIZE = 4096;
@@ -56,6 +56,11 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 	private final ReadOnlyLinkHandler linkHandler;
 	private final FileAttributesUtil attrUtil;
 
+	public final Runnable superUnmounter = super::umount;
+	public final Runnable overriddenUnmounter = this::umountLocal;
+
+	private Runnable chosenUnmounter;
+
 	@Inject
 	public ReadOnlyAdapter(@Named("root") Path root, @Named("maxFileNameLength") int maxFileNameLength, FileStore fileStore, LockManager lockManager, ReadOnlyDirectoryHandler dirHandler, ReadOnlyFileHandler fileHandler, ReadOnlyLinkHandler linkHandler, FileAttributesUtil attrUtil) {
 		this.root = root;
@@ -66,6 +71,8 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 		this.fileHandler = fileHandler;
 		this.linkHandler = linkHandler;
 		this.attrUtil = attrUtil;
+
+		this.chosenUnmounter = overriddenUnmounter;
 	}
 
 	protected Path resolvePath(String absolutePath) {
@@ -264,6 +271,15 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 	 */
 	@Override
 	public void umount() {
+		this.chosenUnmounter.run();
+	}
+
+	@Override
+	public Unmounters unmounters() {
+		return this;
+	}
+
+	private void umountLocal() {
 		// this might be called multiple times: explicitly _and_ via a shutdown hook registered during mount() in AbstractFuseFS
 		if (mounted.compareAndSet(true, false)) {
 			LOG.debug("Marked file system adapter as unmounted.");
@@ -294,5 +310,27 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 			LOG.error(opDesc + " failed.", e);
 			return -ErrorCodes.EIO();
 		}
+	}
+
+	//Getters & Setters
+
+	@Override
+	public Runnable getChosenUnmounter() {
+		return this.chosenUnmounter;
+	}
+
+	@Override
+	public void setChosenUnmounter(Runnable chosenUnmounter) {
+		this.chosenUnmounter = chosenUnmounter;
+	}
+
+	@Override
+	public Runnable getSuperUnmounter() {
+		return this.superUnmounter;
+	}
+
+	@Override
+	public Runnable getOverriddenUnmounter() {
+		return this.overriddenUnmounter;
 	}
 }
