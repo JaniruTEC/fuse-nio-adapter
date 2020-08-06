@@ -2,9 +2,13 @@ package org.cryptomator.frontend.fuse;
 
 import ru.serce.jnrfuse.FuseFS;
 
+import java.nio.file.Path;
+
 public interface FuseNioAdapter extends FuseFS, AutoCloseable {
 
 	boolean isMounted();
+
+	void umountForced();
 
 	/**
 	 * Sets mounted to false. Other than in {@link FuseFS#umount()} this will not actually attempt to unmount the device.
@@ -12,17 +16,23 @@ public interface FuseNioAdapter extends FuseFS, AutoCloseable {
 	@Override
 	void umount();
 
-	Unmounters unmounters();
+	UnmounterFactory unmounterFactory();
 
-	interface Unmounters {
+	Runnable getForcedUnmounter();
 
-		Runnable getChosenUnmounter();
+	void setForcedUnmounter(Runnable forcedUnmounter);
 
-		void setChosenUnmounter(Runnable chosenUnmounter);
+	Runnable getUnmounter();
 
-		Runnable getSuperUnmounter();
+	void setUnmounter(Runnable unmounter);
 
-		Runnable getOverriddenUnmounter();
+	interface UnmounterFactory {
+
+		Runnable fuseExitUnmounter();
+
+		Runnable commandUnmounter(ProcessBuilder builder);
+
+		Runnable commandUnmounter(String command, Path directory);
 
 	}
 }

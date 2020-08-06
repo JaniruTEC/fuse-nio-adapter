@@ -9,6 +9,7 @@ import jnr.ffi.types.size_t;
 import org.cryptomator.frontend.fuse.locks.DataLock;
 import org.cryptomator.frontend.fuse.locks.LockManager;
 import org.cryptomator.frontend.fuse.locks.PathLock;
+import org.cryptomator.frontend.fuse.mount.ProcessUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.serce.jnrfuse.ErrorCodes;
@@ -38,12 +39,13 @@ import java.nio.file.attribute.PosixFileAttributes;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Read-Only FUSE-NIO-Adapter based on Sergey Tselovalnikov's <a href="https://github.com/SerCeMan/jnr-fuse/blob/0.5.1/src/main/java/ru/serce/jnrfuse/examples/HelloFuse.java">HelloFuse</a>
  */
 @PerAdapter
-public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter, FuseNioAdapter.Unmounters {
+public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ReadOnlyAdapter.class);
 	private static final int BLOCKSIZE = 4096;
@@ -56,10 +58,11 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter, FuseN
 	private final ReadOnlyLinkHandler linkHandler;
 	private final FileAttributesUtil attrUtil;
 
-	public final Runnable superUnmounter = super::umount;
-	public final Runnable overriddenUnmounter = this::umountLocal;
+	private final Runnable fuseExitUnmounter = super::umount;
+	private final UnmounterFactory unmounterFactory = new UnmounterFactoryImpl();
 
-	private Runnable chosenUnmounter;
+	private Runnable unmounter;
+	private Runnable forcedUnmounter;
 
 	@Inject
 	public ReadOnlyAdapter(@Named("root") Path root, @Named("maxFileNameLength") int maxFileNameLength, FileStore fileStore, LockManager lockManager, ReadOnlyDirectoryHandler dirHandler, ReadOnlyFileHandler fileHandler, ReadOnlyLinkHandler linkHandler, FileAttributesUtil attrUtil) {
@@ -71,8 +74,6 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter, FuseN
 		this.fileHandler = fileHandler;
 		this.linkHandler = linkHandler;
 		this.attrUtil = attrUtil;
-
-		this.chosenUnmounter = overriddenUnmounter;
 	}
 
 	protected Path resolvePath(String absolutePath) {
@@ -265,18 +266,26 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter, FuseN
 		return mounted.get();
 	}
 
+	@Override
+	public void umountForced() {
+		if(this.forcedUnmounter != null) {
+			this.forcedUnmounter.run();
+		}
+
+		umountLocal();
+	}
+
 	/*
 	 * We overwrite the default implementation to skip the "internal" unmount command, because we want to use system commands instead.
 	 * See also: https://github.com/cryptomator/fuse-nio-adapter/issues/29
 	 */
 	@Override
 	public void umount() {
-		this.chosenUnmounter.run();
-	}
+		if(this.unmounter != null) {
+			this.unmounter.run();
+		}
 
-	@Override
-	public Unmounters unmounters() {
-		return this;
+		umountLocal();
 	}
 
 	private void umountLocal() {
@@ -315,22 +324,64 @@ public class ReadOnlyAdapter extends FuseStubFS implements FuseNioAdapter, FuseN
 	//Getters & Setters
 
 	@Override
-	public Runnable getChosenUnmounter() {
-		return this.chosenUnmounter;
+	public UnmounterFactory unmounterFactory() {
+		return this.unmounterFactory;
 	}
 
 	@Override
-	public void setChosenUnmounter(Runnable chosenUnmounter) {
-		this.chosenUnmounter = chosenUnmounter;
+	public Runnable getUnmounter() {
+		return this.unmounter;
 	}
 
 	@Override
-	public Runnable getSuperUnmounter() {
-		return this.superUnmounter;
+	public void setUnmounter(Runnable unmounter) {
+		this.unmounter = unmounter;
 	}
 
 	@Override
-	public Runnable getOverriddenUnmounter() {
-		return this.overriddenUnmounter;
+	public Runnable getForcedUnmounter() {
+		return this.forcedUnmounter;
+	}
+
+	@Override
+	public void setForcedUnmounter(Runnable forcedUnmounter) {
+		this.forcedUnmounter = forcedUnmounter;
+	}
+
+	private class UnmounterFactoryImpl implements UnmounterFactory {
+
+		@Override
+		public Runnable fuseExitUnmounter() {
+			return ReadOnlyAdapter.this.fuseExitUnmounter;
+		}
+
+		@Override
+		public Runnable commandUnmounter(String command, Path directory) {
+			return new CommandUnmounter(command, directory);
+		}
+
+		@Override
+		public Runnable commandUnmounter(ProcessBuilder builder) {
+			return new CommandUnmounter(builder);
+		}
+	}
+
+	private class CommandUnmounter implements Runnable {
+
+		private final ProcessBuilder builder;
+
+		public CommandUnmounter(String command, Path directory) {
+			this(new ProcessBuilder(command).directory(directory.toFile()));
+		}
+
+		public CommandUnmounter(ProcessBuilder builder) {
+			this.builder = builder;
+		}
+
+		@Override
+		public void run() {
+			Process proc = ProcessUtil.startAndWaitFor(this.builder, 5, TimeUnit.SECONDS);
+			ProcessUtil.assertExitValue(proc, 0);
+		}
 	}
 }

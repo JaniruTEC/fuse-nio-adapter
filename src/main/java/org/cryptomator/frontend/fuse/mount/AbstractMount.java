@@ -36,7 +36,14 @@ abstract class AbstractMount implements Mount {
 	public void unmountForced() throws CommandFailedException {
 		//That's not optimal, but there is no other way (that I know of)
 		//to force the unmount using WinFSP (Linux and Mac override this anyway)
-		unmount();
+		if (!this.fuseAdapter.isMounted()) {
+			return;
+		}
+		try {
+			this.fuseAdapter.umount();
+		} catch (Exception e) {
+			throw new CommandFailedException(e);
+		}
 	}
 
 	@Override
