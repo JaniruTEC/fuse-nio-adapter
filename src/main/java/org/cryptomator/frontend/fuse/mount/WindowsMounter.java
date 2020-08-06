@@ -36,12 +36,12 @@ class WindowsMounter implements Mounter {
 
 		private final ProcessBuilder revealCommand;
 
-		//Copy from AbstractCommandBasedMount
+		@Override
 		public ProcessBuilder getRevealCommand() {
 			return revealCommand;
 		}
 
-		//Copy from AbstractCommandBasedMount
+		//Copy from AbstractMount because of the expectedExitValue of 1
 		@Override
 		public void revealInFileManager() throws CommandFailedException {
 			if (!fuseAdapter.isMounted()) {

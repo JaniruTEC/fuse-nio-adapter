@@ -134,38 +134,31 @@ class MacMounter implements Mounter {
 		}
 	}
 
-	private static class MacMount extends AbstractCommandBasedMount {
+	private static class MacMount extends AbstractMount {
 
 		private final ProcessBuilder revealCommand;
-		private final ProcessBuilder unmountCommand;
-		private final ProcessBuilder unmountForcedCommand;
 
 		private MacMount(FuseNioAdapter fuseAdapter, EnvironmentVariables envVars) {
 			super(fuseAdapter, envVars);
+			FuseNioAdapter.UnmounterFactory unmounterFactory = this.fuseAdapter.unmounterFactory();
 			Path mountPoint = envVars.getMountPoint();
 			this.revealCommand = new ProcessBuilder("open", ".");
 			this.revealCommand.directory(mountPoint.toFile());
-			this.unmountCommand = new ProcessBuilder("umount", "--", mountPoint.getFileName().toString());
-			this.unmountCommand.directory(mountPoint.getParent().toFile());
-			this.unmountForcedCommand = new ProcessBuilder("umount", "-f", "--", mountPoint.getFileName().toString());
-			this.unmountForcedCommand.directory(mountPoint.getParent().toFile());
+
+			ProcessBuilder unmountCommand = new ProcessBuilder("umount", "--", mountPoint.getFileName().toString());
+			unmountCommand.directory(mountPoint.getParent().toFile());
+			this.fuseAdapter.setUnmounter(unmounterFactory.commandUnmounter(unmountCommand));
+
+			ProcessBuilder unmountForcedCommand =
+				new ProcessBuilder("umount", "-f", "--", mountPoint.getFileName().toString());
+			unmountForcedCommand.directory(mountPoint.getParent().toFile());
+			this.fuseAdapter.setForcedUnmounter(unmounterFactory.commandUnmounter(unmountForcedCommand));
 		}
 
 		@Override
 		public ProcessBuilder getRevealCommand() {
 			return revealCommand;
 		}
-
-		@Override
-		public ProcessBuilder getUnmountCommand() {
-			return unmountCommand;
-		}
-
-		@Override
-		public ProcessBuilder getUnmountForcedCommand() {
-			return unmountForcedCommand;
-		}
-
 	}
 
 }

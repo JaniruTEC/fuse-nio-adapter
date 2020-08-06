@@ -44,38 +44,33 @@ class LinuxMounter implements Mounter {
 		return IS_LINUX;
 	}
 
-	private static class LinuxMount extends AbstractCommandBasedMount {
+	private static class LinuxMount extends AbstractMount {
 
 		private static final String DEFAULT_REVEALCOMMAND_LINUX = "xdg-open";
 
 		private final ProcessBuilder revealCommand;
-		private final ProcessBuilder unmountCommand;
-		private final ProcessBuilder unmountForcedCommand;
 
 		private LinuxMount(FuseNioAdapter fuseAdapter, EnvironmentVariables envVars) {
 			super(fuseAdapter, envVars);
+			FuseNioAdapter.UnmounterFactory unmounterFactory = this.fuseAdapter.unmounterFactory();
 			Path mountPoint = envVars.getMountPoint();
 			String[] command = envVars.getRevealCommand().orElse(DEFAULT_REVEALCOMMAND_LINUX).split("\\s+");
 			this.revealCommand = new ProcessBuilder(ObjectArrays.concat(command, mountPoint.toString()));
-			this.unmountCommand = new ProcessBuilder("fusermount", "-u", "--", mountPoint.getFileName().toString());
-			this.unmountCommand.directory(mountPoint.getParent().toFile());
-			this.unmountForcedCommand = new ProcessBuilder("fusermount", "-u", "-z", "--", mountPoint.getFileName().toString());
-			this.unmountForcedCommand.directory(mountPoint.getParent().toFile());
+
+			ProcessBuilder unmountCommand =
+				new ProcessBuilder("fusermount", "-u", "--", mountPoint.getFileName().toString());
+			unmountCommand.directory(mountPoint.getParent().toFile());
+			this.fuseAdapter.setUnmounter(unmounterFactory.commandUnmounter(unmountCommand));
+
+			ProcessBuilder unmountForcedCommand =
+				new ProcessBuilder("fusermount", "-u", "-z", "--", mountPoint.getFileName().toString());
+			unmountForcedCommand.directory(mountPoint.getParent().toFile());
+			this.fuseAdapter.setForcedUnmounter(unmounterFactory.commandUnmounter(unmountForcedCommand));
 		}
 
 		@Override
 		public ProcessBuilder getRevealCommand() {
 			return revealCommand;
-		}
-
-		@Override
-		public ProcessBuilder getUnmountCommand() {
-			return unmountCommand;
-		}
-
-		@Override
-		public ProcessBuilder getUnmountForcedCommand() {
-			return unmountForcedCommand;
 		}
 	}
 }

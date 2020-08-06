@@ -3,6 +3,8 @@ package org.cryptomator.frontend.fuse.mount;
 import com.google.common.base.Preconditions;
 import org.cryptomator.frontend.fuse.FuseNioAdapter;
 
+import java.util.concurrent.TimeUnit;
+
 abstract class AbstractMount implements Mount {
 
 	protected final FuseNioAdapter fuseAdapter;
@@ -15,9 +17,15 @@ abstract class AbstractMount implements Mount {
 		this.envVars = envVars;
 	}
 
+	protected abstract ProcessBuilder getRevealCommand();
+
 	@Override
 	public void revealInFileManager() throws CommandFailedException {
-		//NO-OP
+		if (!fuseAdapter.isMounted()) {
+			throw new CommandFailedException("Not currently mounted.");
+		}
+		Process proc = ProcessUtil.startAndWaitFor(getRevealCommand(), 5, TimeUnit.SECONDS);
+		ProcessUtil.assertExitValue(proc, 0);
 	}
 
 	@Override
